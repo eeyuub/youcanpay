@@ -17,6 +17,7 @@ Production-ready YouCanPay SDK for Node.js and NestJS with sandbox support, plus
 | Backend | NestJS + Prisma + PostgreSQL |
 | Auth | JWT authentication |
 | Testing | Full suite (unit, integration, E2E) |
+| Audit Logging | Optional, with database/custom handler support |
 
 ## Approach
 
@@ -38,7 +39,15 @@ youcan_pay_package/
 │   │   │   └── decorators.ts
 │   │   ├── interfaces/
 │   │   ├── enums/
-│   │   └── errors/
+│   │   ├── errors/
+│   │   └── logging/
+│   │       ├── logger.ts          # Audit logger implementation
+│   │       └── interfaces.ts      # Logging types
+│   ├── migrations/
+│   │   ├── prisma/
+│   │   │   └── youcanpay-log.prisma
+│   │   └── typeorm/
+│   │       └── YouCanPayLog.entity.ts
 │   ├── test/
 │   ├── package.json
 │   └── tsconfig.json
@@ -232,6 +241,8 @@ frontend/src/
 | Unit | `YouCanPayClient` methods - mock Axios, verify payloads | Jest |
 | Unit | URL generation, error handling, webhook validation | Jest |
 | Unit | NestJS module `forRoot`/`forRootAsync` providers | Jest + @nestjs/testing |
+| Unit | Audit logger - sanitization, custom handler calls | Jest |
+| Unit | Data sanitization - verify sensitive fields redacted | Jest |
 
 ### Backend
 
@@ -279,6 +290,185 @@ class YouCanPayError extends Error {
 - Network failures: `NETWORK_ERROR`
 - API validation errors: `VALIDATION_ERROR` with field details
 - Timeout handling with configurable timeout option
+
+---
+
+## Audit Logging (Optional Feature)
+
+A comprehensive logging system that records all SDK actions with full request/response data. This feature is **opt-in** and does not require database migrations unless the user chooses database storage.
+
+### What Gets Logged
+
+| Field | Description |
+|-------|-------------|
+| `action` | SDK method name: `createToken`, `payWithCreditCard`, `payWithCashPlus`, `webhook` |
+| `request` | Sanitized request payload (sensitive data like CVV, full card numbers removed) |
+| `response` | Full response or error details |
+| `status` | `success` or `error` |
+| `durationMs` | Request duration in milliseconds |
+| `metadata` | Custom user-provided data |
+| `createdAt` | Timestamp |
+
+### Storage Options
+
+Users choose one of three storage modes:
+
+1. **Database** - Persist logs to database (requires optional migration)
+2. **Custom Handler** - User provides their own async logging function
+3. **Disabled** - No logging (default)
+
+### Configuration
+
+```typescript
+// Option 1: Database storage (requires migration)
+YouCanPayModule.forRoot({
+  privateKey: '...',
+  publicKey: '...',
+  sandbox: true,
+  logging: {
+    enabled: true,
+    storage: 'database',
+    // For NestJS: inject PrismaService or TypeORM repository
+    repository: YouCanPayLogRepository,
+  }
+})
+
+// Option 2: Custom handler
+YouCanPayModule.forRoot({
+  privateKey: '...',
+  publicKey: '...',
+  sandbox: true,
+  logging: {
+    enabled: true,
+    storage: 'custom',
+    handler: async (log: YouCanPayLogEntry) => {
+      // Send to external service, file, etc.
+      await myLoggingService.log(log);
+    }
+  }
+})
+
+// Option 3: Disabled (default)
+YouCanPayModule.forRoot({
+  privateKey: '...',
+  publicKey: '...',
+  sandbox: true,
+  // logging not specified = disabled
+})
+```
+
+### Plain Node.js Usage
+
+```typescript
+const client = new YouCanPayClient({
+  privateKey: '...',
+  publicKey: '...',
+  sandbox: true,
+  logging: {
+    enabled: true,
+    storage: 'custom',
+    handler: async (log) => console.log(JSON.stringify(log))
+  }
+});
+```
+
+### Database Schema
+
+**Prisma (`migrations/prisma/youcanpay-log.prisma`):**
+
+```prisma
+model YouCanPayLog {
+  id         String   @id @default(uuid())
+  action     String   // "createToken", "payWithCreditCard", "payWithCashPlus", "webhook"
+  request    Json     // Sanitized request payload
+  response   Json?    // Response data or error
+  status     String   // "success", "error"
+  durationMs Int?
+  metadata   Json?    // Custom user data
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+}
+```
+
+**TypeORM (`migrations/typeorm/YouCanPayLog.entity.ts`):**
+
+```typescript
+@Entity('youcanpay_logs')
+export class YouCanPayLog {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  action: string;
+
+  @Column('jsonb')
+  request: Record<string, unknown>;
+
+  @Column('jsonb', { nullable: true })
+  response: Record<string, unknown>;
+
+  @Column()
+  status: string;
+
+  @Column({ nullable: true })
+  durationMs: number;
+
+  @Column('jsonb', { nullable: true })
+  metadata: Record<string, unknown>;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}
+```
+
+### Data Sanitization
+
+Sensitive fields are automatically redacted before logging:
+
+| Field | Sanitization |
+|-------|--------------|
+| `creditCard` | Last 4 digits only: `************1234` |
+| `cvv` | Completely removed: `***` |
+| `privateKey` | Completely removed: `[REDACTED]` |
+| `password` | Completely removed: `[REDACTED]` |
+
+### Logging Interface
+
+```typescript
+interface YouCanPayLogEntry {
+  id: string;
+  action: 'createToken' | 'payWithCreditCard' | 'payWithCashPlus' | 'webhook';
+  request: Record<string, unknown>;
+  response?: Record<string, unknown>;
+  status: 'success' | 'error';
+  durationMs?: number;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+}
+
+interface YouCanPayLoggingOptions {
+  enabled: boolean;
+  storage: 'database' | 'custom' | 'none';
+  handler?: (log: YouCanPayLogEntry) => Promise<void>;
+  repository?: any; // Prisma client or TypeORM repository
+}
+```
+
+### Installation Instructions (for SDK users)
+
+**For Prisma users:**
+1. Copy `node_modules/youcanpay-sdk/migrations/prisma/youcanpay-log.prisma` content into your `schema.prisma`
+2. Run `npx prisma migrate dev`
+3. Configure SDK with `storage: 'database'` and pass PrismaService
+
+**For TypeORM users:**
+1. Import `YouCanPayLog` entity from `youcanpay-sdk/migrations/typeorm`
+2. Add to your TypeORM entities array
+3. Run migrations
+4. Configure SDK with `storage: 'database'` and pass repository
 
 ---
 
