@@ -1,6 +1,6 @@
 {
   "name": "@wiicode/youcanpay-sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Production-ready YouCanPay SDK for Node.js and NestJS",
   "author": "WiiCode",
   "license": "MIT",

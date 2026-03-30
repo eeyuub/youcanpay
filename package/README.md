@@ -82,12 +82,12 @@ const client = new YouCanPayClient({
 // Create a payment
 async function createPayment() {
   const { token } = await client.createToken({
-    orderId: 'order-123',
     amount: 50000,           // 500.00 MAD (in centimes)
     currency: CurrencyCode.MAD,
     customerIp: '192.168.1.1',
     successUrl: 'https://myapp.com/payment/success',
     errorUrl: 'https://myapp.com/payment/error',
+    // orderId: 'order-123', // Optional - auto-generated UUID if not provided
   });
 
   // Redirect user to YouCanPay checkout
@@ -312,11 +312,11 @@ Create a payment token.
 
 ```typescript
 const { token } = await client.createToken({
-  orderId: string,           // Your unique order ID
   amount: number,            // Amount in centimes (5000 = 50.00 MAD)
   currency: CurrencyCode,    // 'MAD' | 'USD' | 'EUR'
   customerIp: string,        // Customer's IP address
   successUrl: string,        // Redirect URL on success
+  orderId?: string,          // Optional - auto-generated UUID if not provided
   errorUrl?: string,         // Redirect URL on error
   customer?: {               // Optional customer info
     name?: string,

@@ -12,7 +12,7 @@ export interface CustomerInfo {
 }
 
 export interface CreateTokenParams {
-  orderId: string;
+  orderId?: string;
   amount: number;
   currency: CurrencyCode | string;
   customerIp: string;

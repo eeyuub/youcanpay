@@ -34,12 +34,11 @@ const client = new YouCanPayClient({
 
 // Create payment
 const { token } = await client.createToken({
-  orderId: 'order-123',
   amount: 50000, // 500.00 MAD
   currency: 'MAD',
   customerIp: '192.168.1.1',
   successUrl: 'https://myapp.com/success',
-  errorUrl: 'https://myapp.com/error',
+  // orderId: 'order-123', // Optional - auto-generated if not provided
 });
 
 // Redirect user to payment page

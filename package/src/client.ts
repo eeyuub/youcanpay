@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { randomUUID } from 'crypto';
 import {
   YOUCANPAY_BASE_URL,
   YOUCANPAY_SANDBOX_BASE_URL,
@@ -43,10 +44,11 @@ export class YouCanPayClient {
 
   async createToken(params: CreateTokenParams): Promise<TokenResponse> {
     const startTime = Date.now();
+    const orderId = params.orderId ?? randomUUID();
     const body = new URLSearchParams();
     body.append('pri_key', this.privateKey);
     body.append('pub_key', this.publicKey);
-    body.append('order_id', params.orderId);
+    body.append('order_id', orderId);
     body.append('amount', String(params.amount));
     body.append('currency', params.currency);
     body.append('customer_ip', params.customerIp);
@@ -76,7 +78,7 @@ export class YouCanPayClient {
       const data = response.data as TokenResponse;
       await this.logger.log(
         'createToken',
-        { orderId: params.orderId, amount: params.amount, currency: params.currency },
+        { orderId, amount: params.amount, currency: params.currency },
         data as unknown as Record<string, unknown>,
         'success',
         Date.now() - startTime,
@@ -86,7 +88,7 @@ export class YouCanPayClient {
     } catch (error) {
       await this.logger.log(
         'createToken',
-        { orderId: params.orderId, amount: params.amount, currency: params.currency },
+        { orderId, amount: params.amount, currency: params.currency },
         undefined,
         'error',
         Date.now() - startTime,
