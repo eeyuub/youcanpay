@@ -1,5 +1,10 @@
 # YouCanPay SDK
 
+[![npm version](https://img.shields.io/npm/v/@wiicode/youcanpay-sdk.svg)](https://www.npmjs.com/package/@wiicode/youcanpay-sdk)
+[![npm downloads](https://img.shields.io/npm/dm/@wiicode/youcanpay-sdk.svg)](https://www.npmjs.com/package/@wiicode/youcanpay-sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/eeyuub/youcanpay)
+
 Production-ready Node.js SDK for [YouCanPay](https://youcanpay.com) - Morocco's payment gateway.
 
 Works with **any Node.js framework** (Express, Fastify, Hapi) and has first-class **NestJS integration**.
@@ -1008,9 +1013,15 @@ interface YouCanPayOptions {
 
 ## Support
 
-- [YouCanPay Documentation](https://youcanpay.com/docs)
+- [GitHub Repository](https://github.com/eeyuub/youcanpay)
+- [Report Issues](https://github.com/eeyuub/youcanpay/issues)
 - [npm Package](https://www.npmjs.com/package/@wiicode/youcanpay-sdk)
+- [YouCanPay Documentation](https://youcanpay.com/docs)
+
+## Author
+
+**WiiCode** - [@eeyuub](https://github.com/eeyuub)
 
 ## License
 
-MIT
+MIT - see [LICENSE](https://github.com/eeyuub/youcanpay/blob/master/LICENSE) for details.

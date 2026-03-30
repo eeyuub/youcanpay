@@ -1,9 +1,17 @@
 {
   "name": "@wiicode/youcanpay-sdk",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Production-ready YouCanPay SDK for Node.js and NestJS",
   "author": "WiiCode",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eeyuub/youcanpay.git"
+  },
+  "homepage": "https://github.com/eeyuub/youcanpay#readme",
+  "bugs": {
+    "url": "https://github.com/eeyuub/youcanpay/issues"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
