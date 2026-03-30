@@ -67,14 +67,13 @@ youcanpay/
 │   ├── src/          # TypeScript source
 │   ├── test/         # Unit tests
 │   └── README.md     # Full documentation
-├── backend/          # Demo NestJS application
-│   ├── src/          # Backend source
-│   └── prisma/       # Database schema
-└── frontend/         # Demo React application
-    └── src/          # Frontend source
+├── backend/          # Demo NestJS app (for testing only, not part of SDK)
+└── frontend/         # Demo React app (for testing only, not part of SDK)
 ```
 
-## Running the Demo
+> **Note:** The `backend/` and `frontend/` directories are example applications for testing and demonstration purposes. They are NOT part of the npm package. Only the `package/` directory is published to npm.
+
+## Running the Demo (Optional)
 
 ### Prerequisites
 
