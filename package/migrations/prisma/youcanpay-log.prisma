@@ -1,0 +1,18 @@
+// Copy this model into your schema.prisma file
+// Then run: npx prisma migrate dev
+
+model YouCanPayLog {
+  id         String   @id @default(uuid())
+  action     String   // "createToken", "payWithCreditCard", "payWithCashPlus", "webhook", "getTransaction"
+  request    Json     // Sanitized request payload
+  response   Json?    // Response data or error
+  status     String   // "success", "error"
+  durationMs Int?     @map("duration_ms")
+  metadata   Json?    // Custom user data
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+  @@map("youcanpay_logs")
+}

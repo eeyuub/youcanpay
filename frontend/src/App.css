@@ -1,0 +1,292 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: #f5f5f5;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: #1a1a2e;
+  color: white;
+  padding: 1rem 2rem;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2rem;
+}
+
+.payment-form {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.payment-form h2 {
+  margin-top: 0;
+  color: #1a1a2e;
+}
+
+.amount-section label {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.amount-section input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+button {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background 0.2s;
+}
+
+button:not(.secondary) {
+  background: #4CAF50;
+  color: white;
+}
+
+button:not(.secondary):hover:not(:disabled) {
+  background: #45a049;
+}
+
+button.secondary {
+  background: #f5f5f5;
+  color: #333;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: #e0e0e0;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #ffebee;
+  color: #c62828;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+#payment-container {
+  margin: 1rem 0;
+  min-height: 200px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.payment-result {
+  text-align: center;
+  padding: 2rem;
+}
+
+.payment-result .icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.payment-result.success .icon {
+  color: #4CAF50;
+}
+
+.payment-result.error .icon {
+  color: #f44336;
+}
+
+.payment-section p {
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.info-text {
+  margin-top: 1rem;
+  color: #666;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* Auth Form */
+.auth-form {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-form h2 {
+  margin-top: 0;
+  color: #1a1a2e;
+}
+
+.auth-form label {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 1rem;
+  color: #666;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #4CAF50;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  width: auto;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+/* Header user info */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info span {
+  font-size: 0.9rem;
+}
+
+.logout-btn {
+  width: auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: rgba(255,255,255,0.2);
+  color: white;
+}
+
+.logout-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Payment Callback */
+.payment-callback {
+  width: 100%;
+  max-width: 500px;
+}
+
+.callback-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  text-align: center;
+}
+
+.callback-card .icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.callback-card.success .icon {
+  color: #4CAF50;
+}
+
+.callback-card.error .icon {
+  color: #f44336;
+}
+
+.callback-card h2 {
+  margin: 0 0 1rem;
+  color: #1a1a2e;
+}
+
+.callback-card p {
+  margin: 0.5rem 0;
+  color: #666;
+  word-break: break-all;
+}
+
+.callback-card .message {
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+.callback-card button {
+  margin-top: 1.5rem;
+}
+
+.callback-card.pending .icon,
+.callback-card.loading .icon {
+  color: #ff9800;
+}
+
+.callback-card .amount {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1a1a2e;
+  margin: 0.5rem 0;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e0e0e0;
+  border-top-color: #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

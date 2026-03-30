@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build (keep for npm publish, but ignore in git)
+dist/
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Test
+coverage/
+
+# TypeScript build info
+*.tsbuildinfo
