@@ -6,7 +6,7 @@ export { YouCanPayModule } from './nestjs/youcanpay.module';
 export { YouCanPayService } from './nestjs/youcanpay.service';
 export { InjectYouCanPay } from './nestjs/decorators';
 export { WebhookGuard, WebhookOptions, WEBHOOK_SECRET_KEY } from './nestjs/guards';
-export { ParseWebhookPipe } from './nestjs/pipes';
+export { ParseWebhookPipe, ParsedWebhook } from './nestjs/pipes';
 
 // Security utilities
 export {
@@ -24,6 +24,13 @@ export {
   validateOrderId,
   validateIP,
   validateEmail,
+  validateTokenId,
+  validateTimeout,
+  validateClientOptions,
+  validateCardNumber,
+  validateExpiryDate,
+  validateCVV,
+  validateCardHolderName,
   validatePaymentInput,
   sanitizeString,
   toCentimes,
@@ -36,6 +43,7 @@ export {
   type WebhookVerifyOptions,
   type SupportedCurrency,
   type ValidationResult,
+  type ClientOptionsValidationInput,
 } from './security';
 
 // Interfaces

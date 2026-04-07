@@ -27,6 +27,7 @@ export function PaymentCallback() {
       const params = new URLSearchParams(window.location.search);
       const transactionId = params.get('transaction_id') || '';
       const orderId = params.get('order_id') || '';
+      const isSuccess = params.get('is_success') || params.get('success') || '';
 
       if (!orderId || !transactionId) {
         setStatus('error');
@@ -35,9 +36,9 @@ export function PaymentCallback() {
       }
 
       try {
-        // SECURE: Verify payment with backend instead of trusting URL params
+        // SECURE: Verify payment with backend, passing redirect success flag
         const response = await fetch(
-          `${API_BASE}/payments/verify?order_id=${orderId}&transaction_id=${transactionId}`
+          `${API_BASE}/payments/verify?order_id=${orderId}&transaction_id=${transactionId}&is_success=${isSuccess}`
         );
         const data: VerifyResponse = await response.json();
 

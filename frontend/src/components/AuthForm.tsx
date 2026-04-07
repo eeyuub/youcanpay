@@ -67,7 +67,13 @@ export function AuthForm({ onAuth }: AuthFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
+            minLength={isLogin ? 1 : 8}
+            pattern={isLogin ? undefined : '(?=.*\\d)(?=.*[a-z])(?=.*[A-Z]).{8,}'}
+            title={
+              isLogin
+                ? undefined
+                : 'Password must be at least 8 characters and include uppercase, lowercase, and a number'
+            }
             disabled={loading}
           />
         </label>

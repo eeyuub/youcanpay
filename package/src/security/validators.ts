@@ -12,6 +12,12 @@ export interface ValidationResult {
   error?: string;
 }
 
+export interface ClientOptionsValidationInput {
+  privateKey?: unknown;
+  publicKey?: unknown;
+  timeout?: unknown;
+}
+
 /**
  * Amount validation options
  */
@@ -38,6 +44,31 @@ export interface URLValidationOptions {
   allowLocalhost?: boolean;
   /** Require TLD (default: true for production) */
   requireTLD?: boolean;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function passesLuhn(cardNumber: string): boolean {
+  let sum = 0;
+  let shouldDouble = false;
+
+  for (let i = cardNumber.length - 1; i >= 0; i -= 1) {
+    let digit = Number(cardNumber[i]);
+
+    if (shouldDouble) {
+      digit *= 2;
+      if (digit > 9) {
+        digit -= 9;
+      }
+    }
+
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+
+  return sum % 10 === 0;
 }
 
 /**
@@ -213,14 +244,25 @@ export function validateIP(ip: unknown): ValidationResult {
   const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
   // IPv6 pattern (simplified)
   const ipv6Pattern = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+  // IPv4-mapped IPv6 pattern (e.g., ::ffff:127.0.0.1)
+  const ipv4MappedIPv6Pattern = /^::ffff:(\d{1,3}\.){3}\d{1,3}$/i;
 
-  if (!ipv4Pattern.test(ip) && !ipv6Pattern.test(ip) && ip !== '::1') {
+  if (!ipv4Pattern.test(ip) && !ipv6Pattern.test(ip) && !ipv4MappedIPv6Pattern.test(ip) && ip !== '::1') {
     return { valid: false, error: 'Invalid IP address format' };
   }
 
   // Validate IPv4 octets
   if (ipv4Pattern.test(ip)) {
     const octets = ip.split('.').map(Number);
+    if (octets.some((octet) => octet > 255)) {
+      return { valid: false, error: 'Invalid IP address: octet out of range' };
+    }
+  }
+
+  // Validate IPv4-mapped IPv6 octets
+  if (ipv4MappedIPv6Pattern.test(ip)) {
+    const ipv4Part = ip.replace(/^::ffff:/i, '');
+    const octets = ipv4Part.split('.').map(Number);
     if (octets.some((octet) => octet > 255)) {
       return { valid: false, error: 'Invalid IP address: octet out of range' };
     }
@@ -249,6 +291,114 @@ export function validateEmail(email: unknown): ValidationResult {
 
   if (email.length > 254) {
     return { valid: false, error: 'Email is too long' };
+  }
+
+  return { valid: true };
+}
+
+export function validateTokenId(tokenId: unknown): ValidationResult {
+  if (!isNonEmptyString(tokenId)) {
+    return { valid: false, error: 'Token ID is required' };
+  }
+
+  if (tokenId.length > 255) {
+    return { valid: false, error: 'Token ID is too long' };
+  }
+
+  return { valid: true };
+}
+
+export function validateTimeout(timeout: unknown): ValidationResult {
+  if (timeout === undefined) {
+    return { valid: true };
+  }
+
+  if (typeof timeout !== 'number' || !Number.isFinite(timeout)) {
+    return { valid: false, error: 'Timeout must be a finite number' };
+  }
+
+  if (timeout <= 0) {
+    return { valid: false, error: 'Timeout must be greater than 0' };
+  }
+
+  return { valid: true };
+}
+
+export function validateClientOptions(options: ClientOptionsValidationInput): ValidationResult {
+  if (!isNonEmptyString(options.privateKey)) {
+    return { valid: false, error: 'privateKey is required' };
+  }
+
+  if (!isNonEmptyString(options.publicKey)) {
+    return { valid: false, error: 'publicKey is required' };
+  }
+
+  return validateTimeout(options.timeout);
+}
+
+export function validateCardNumber(cardNumber: unknown): ValidationResult {
+  if (!isNonEmptyString(cardNumber)) {
+    return { valid: false, error: 'Card number is required' };
+  }
+
+  const normalized = cardNumber.replace(/\s+/g, '');
+  if (!/^\d{12,19}$/.test(normalized)) {
+    return { valid: false, error: 'Card number must contain 12 to 19 digits' };
+  }
+
+  if (!passesLuhn(normalized)) {
+    return { valid: false, error: 'Card number is invalid' };
+  }
+
+  return { valid: true };
+}
+
+export function validateExpiryDate(expireDate: unknown): ValidationResult {
+  if (!isNonEmptyString(expireDate)) {
+    return { valid: false, error: 'Expire date is required' };
+  }
+
+  const match = expireDate.trim().match(/^(\d{2})\/(\d{2}|\d{4})$/);
+  if (!match) {
+    return { valid: false, error: 'Expire date must be in MM/YY or MM/YYYY format' };
+  }
+
+  const month = Number(match[1]);
+  const yearPart = match[2];
+  const year = yearPart.length === 2 ? 2000 + Number(yearPart) : Number(yearPart);
+
+  if (month < 1 || month > 12) {
+    return { valid: false, error: 'Expire date month must be between 01 and 12' };
+  }
+
+  const now = new Date();
+  const expiry = new Date(year, month, 0, 23, 59, 59, 999);
+  if (Number.isNaN(expiry.getTime()) || expiry < now) {
+    return { valid: false, error: 'Card is expired' };
+  }
+
+  return { valid: true };
+}
+
+export function validateCVV(cvv: unknown): ValidationResult {
+  if (!isNonEmptyString(cvv)) {
+    return { valid: false, error: 'CVV is required' };
+  }
+
+  if (!/^\d{3,4}$/.test(cvv)) {
+    return { valid: false, error: 'CVV must be 3 or 4 digits' };
+  }
+
+  return { valid: true };
+}
+
+export function validateCardHolderName(cardHolderName: unknown): ValidationResult {
+  if (!isNonEmptyString(cardHolderName)) {
+    return { valid: false, error: 'Card holder name is required' };
+  }
+
+  if (cardHolderName.trim().length > 255) {
+    return { valid: false, error: 'Card holder name is too long' };
   }
 
   return { valid: true };

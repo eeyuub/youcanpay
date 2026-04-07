@@ -9,11 +9,23 @@ Production-ready Node.js SDK for [YouCanPay](https://youcanpay.com) - Morocco's 
 
 Works with **any Node.js framework** (Express, Fastify, Hapi) and has first-class **NestJS integration**.
 
+## Features
+
+- **Credit Card Payments** - Redirect to YouCanPay checkout or direct server-side processing
+- **CashPlus Payments** - Generate payment codes for cash payments at 1,800+ CashPlus locations in Morocco
+- **Webhook Handling** - Secure webhook verification and parsing
+- **NestJS Integration** - First-class module, guards, and pipes
+- **TypeScript** - Full type safety and IntelliSense support
+- **Validation** - Built-in input validation and sanitization
+
 ## Table of Contents
 
 - [Installation](#installation)
 - [Environment Setup](#environment-setup)
 - [Quick Start](#quick-start)
+- [Payment Methods](#payment-methods)
+  - [Credit Card](#credit-card-payment)
+  - [CashPlus](#cashplus-payment)
 - [Complete Payment Flow](#complete-payment-flow)
 - [API Reference](#api-reference)
 - [Webhook Handling](#webhook-handling)
@@ -174,6 +186,62 @@ export class PaymentsService {
   }
 }
 ```
+
+---
+
+## Payment Methods
+
+### Credit Card Payment
+
+Redirect users to YouCanPay's secure checkout page:
+
+```typescript
+// 1. Create token
+const { token } = await client.createToken({
+  amount: 50000, // 500.00 MAD
+  currency: CurrencyCode.MAD,
+  customerIp: '192.168.1.1',
+  successUrl: 'https://myapp.com/success',
+  errorUrl: 'https://myapp.com/error',
+});
+
+// 2. Redirect to checkout
+const paymentUrl = client.getPaymentUrl(token.id);
+// => https://youcanpay.com/payment/token-id?lang=fr
+```
+
+### CashPlus Payment
+
+Generate a payment code for cash payments at 1,800+ CashPlus locations in Morocco:
+
+```typescript
+// 1. Create token (same as card)
+const { token } = await client.createToken({
+  amount: 50000,
+  currency: CurrencyCode.MAD,
+  customerIp: '192.168.1.1',
+  successUrl: 'https://myapp.com/success',
+  errorUrl: 'https://myapp.com/error',
+});
+
+// 2. Initialize CashPlus payment
+const cashplus = await client.payWithCashPlus({
+  tokenId: token.id,
+});
+
+// 3. Display the code to customer
+console.log('Payment Code:', cashplus.token); // e.g., "cp862603980"
+console.log('Transaction ID:', cashplus.transaction_id);
+
+// Customer takes this code to any CashPlus location to pay in cash
+```
+
+**CashPlus Flow:**
+1. Customer sees payment code (e.g., `cp862603980`)
+2. Customer visits any CashPlus location in Morocco
+3. Customer provides the code and pays in cash
+4. YouCanPay sends webhook notification to your server
+5. Your app confirms the payment
 
 ---
 
@@ -371,13 +439,32 @@ const result = await client.payWithCreditCard({
 
 #### `payWithCashPlus(params): Promise<CashPlusPaymentResponse>`
 
-Initialize CashPlus payment.
+Initialize CashPlus payment. Returns a payment code that customers can use at any CashPlus location in Morocco.
 
 ```typescript
 const result = await client.payWithCashPlus({
-  tokenId: string,
+  tokenId: string,  // Token from createToken()
 });
+
+// Response
+{
+  transaction_id: string,
+  token: string,               // Payment code for CashPlus location (e.g., "cp115705252")
+  success?: boolean,
+  amount?: number,             // Amount in centimes
+  currency?: string,           // Currency code
+  order_id?: string,           // Order reference
+  expires_at?: string,         // Token expiration (ISO date)
+  message?: string,            // Message from YouCanPay
+}
 ```
+
+**CashPlus Payment Flow:**
+1. Create a payment token with `createToken()`
+2. Initialize CashPlus payment with `payWithCashPlus()`
+3. Display the `cashplus_token` to the customer
+4. Customer visits any CashPlus location and provides the code
+5. Once paid, YouCanPay sends a webhook notification
 
 ### Standalone Functions
 
@@ -419,6 +506,13 @@ import {
   validateOrderId,
   validateIP,
   validateEmail,
+  validateTokenId,
+  validateTimeout,
+  validateClientOptions,
+  validateCardNumber,
+  validateExpiryDate,
+  validateCVV,
+  validateCardHolderName,
   validatePaymentInput,
 } from '@wiicode/youcanpay-sdk';
 
@@ -432,6 +526,13 @@ validateCurrency('GBP');                 // { valid: false, error: 'Currency mus
 
 validateRedirectURL('https://app.com'); // { valid: true }
 validateRedirectURL('javascript:...');  // { valid: false }
+validateTokenId('tok_123');             // { valid: true }
+validateTimeout(30000);                 // { valid: true }
+validateClientOptions({ privateKey: 'pri_x', publicKey: 'pub_x' }); // { valid: true }
+validateCardNumber('4111111111111111'); // { valid: true }
+validateExpiryDate('12/30');            // { valid: true }
+validateCVV('123');                     // { valid: true }
+validateCardHolderName('Jane Doe');     // { valid: true }
 
 // Validate all at once
 const result = validatePaymentInput({
@@ -513,7 +614,7 @@ console.log(webhook.transactionId);  // 'txn-uuid'
 console.log(webhook.orderId);        // 'your-order-id'
 console.log(webhook.amount);         // 50000
 console.log(webhook.isSuccess);      // true
-console.log(webhook.status);         // 'paid' | 'failed' | 'refunded'
+console.log(webhook.status);         // 'paid' | 'failed' | 'refunded' | 'unknown'
 console.log(webhook.eventName);      // 'transaction.paid'
 ```
 
@@ -530,6 +631,7 @@ import {
 } from '@nestjs/common';
 import {
   ParseWebhookPipe,
+  ParsedWebhook,
   ParsedWebhookPayload,
   verifyWebhookSecret,
 } from '@wiicode/youcanpay-sdk';
@@ -556,6 +658,15 @@ export class PaymentsController {
 
     return { received: true };
   }
+}
+```
+
+You can also inject the parsed payload directly:
+
+```typescript
+@Post('webhook')
+handleWebhook(@ParsedWebhook() webhook: ParsedWebhookPayload) {
+  return { orderId: webhook.orderId };
 }
 ```
 
@@ -883,6 +994,15 @@ if (!validation.valid) {
 6. **HTTPS only** - Never use HTTP in production
 7. **Sanitize inputs** - Use `sanitizeString()` for user inputs
 8. **URL whitelist** - Validate redirect URLs against allowed domains
+9. **Pre-validate outbound requests** - The SDK rejects invalid client, token, and card input before any network call
+
+### Production Checklist
+
+- Complete a full sandbox checkout plus webhook round-trip before enabling live keys.
+- Restrict redirect URLs to your own domains with `validateRedirectURL(..., { allowedDomains: [...] })`.
+- Store webhook event IDs in your application database and enforce idempotency there.
+- Monitor failed `getTransaction()` and webhook-verification paths.
+- Rotate API keys and webhook secrets regularly.
 
 ---
 
@@ -898,7 +1018,7 @@ try {
 } catch (error) {
   if (error instanceof YouCanPayError) {
     console.log(error.code);     // ErrorCodes.VALIDATION_ERROR
-    console.log(error.status);   // 422
+    console.log(error.statusCode);   // 422
     console.log(error.message);  // "The amount field is required"
     console.log(error.details);  // { amount: ['required'] }
   }
@@ -925,7 +1045,7 @@ export class YouCanPayExceptionFilter implements ExceptionFilter {
   catch(exception: YouCanPayError, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse();
 
-    response.status(exception.status || 500).json({
+    response.status(exception.statusCode || 500).json({
       error: exception.code,
       message: exception.message,
     });

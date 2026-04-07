@@ -5,6 +5,13 @@ import {
   validateOrderId,
   validateIP,
   validateEmail,
+  validateTokenId,
+  validateTimeout,
+  validateClientOptions,
+  validateCardNumber,
+  validateExpiryDate,
+  validateCVV,
+  validateCardHolderName,
   validatePaymentInput,
   toCentimes,
   fromCentimes,
@@ -175,6 +182,70 @@ describe('Validators', () => {
       expect(validateEmail('not-an-email').valid).toBe(false);
       expect(validateEmail('@domain.com').valid).toBe(false);
       expect(validateEmail('user@').valid).toBe(false);
+    });
+  });
+
+  describe('validateTokenId', () => {
+    it('should accept valid token IDs', () => {
+      expect(validateTokenId('tok_123').valid).toBe(true);
+    });
+
+    it('should reject empty token IDs', () => {
+      expect(validateTokenId('').valid).toBe(false);
+    });
+  });
+
+  describe('validateTimeout', () => {
+    it('should accept undefined and positive numbers', () => {
+      expect(validateTimeout(undefined).valid).toBe(true);
+      expect(validateTimeout(30000).valid).toBe(true);
+    });
+
+    it('should reject zero, negative, and non-number values', () => {
+      expect(validateTimeout(0).valid).toBe(false);
+      expect(validateTimeout(-1).valid).toBe(false);
+      expect(validateTimeout('1000').valid).toBe(false);
+    });
+  });
+
+  describe('validateClientOptions', () => {
+    it('should accept valid SDK options', () => {
+      expect(
+        validateClientOptions({
+          privateKey: 'pri_test',
+          publicKey: 'pub_test',
+          timeout: 1000,
+        }).valid,
+      ).toBe(true);
+    });
+
+    it('should reject missing keys', () => {
+      expect(validateClientOptions({ publicKey: 'pub_test' }).valid).toBe(false);
+      expect(validateClientOptions({ privateKey: 'pri_test' }).valid).toBe(false);
+    });
+  });
+
+  describe('card validation helpers', () => {
+    it('should validate card numbers using Luhn', () => {
+      expect(validateCardNumber('4111111111111111').valid).toBe(true);
+      expect(validateCardNumber('4111111111111112').valid).toBe(false);
+    });
+
+    it('should validate expiry dates', () => {
+      expect(validateExpiryDate('12/99').valid).toBe(true);
+      expect(validateExpiryDate('13/30').valid).toBe(false);
+      expect(validateExpiryDate('01/20').valid).toBe(false);
+    });
+
+    it('should validate CVV values', () => {
+      expect(validateCVV('123').valid).toBe(true);
+      expect(validateCVV('1234').valid).toBe(true);
+      expect(validateCVV('12').valid).toBe(false);
+    });
+
+    it('should validate card holder names', () => {
+      expect(validateCardHolderName('Jane Doe').valid).toBe(true);
+      expect(validateCardHolderName('').valid).toBe(false);
     });
   });
 

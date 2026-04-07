@@ -1,4 +1,10 @@
-import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
+import {
+  PipeTransform,
+  Injectable,
+  BadRequestException,
+  createParamDecorator,
+  ExecutionContext,
+} from '@nestjs/common';
 import { parseWebhookPayload, ParsedWebhookPayload, WebhookParseError } from '../../security/webhook';
 
 /**
@@ -39,9 +45,16 @@ export class ParseWebhookPipe implements PipeTransform<unknown, ParsedWebhookPay
  * }
  * ```
  */
-export function ParsedWebhook(): ParameterDecorator {
-  return (target, propertyKey, parameterIndex) => {
-    // This is handled by NestJS's Body decorator with ParseWebhookPipe
-    // This decorator is just for semantic clarity
-  };
-}
+export const ParsedWebhook = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): ParsedWebhookPayload => {
+    try {
+      const request = ctx.switchToHttp().getRequest<{ body: unknown }>();
+      return parseWebhookPayload(request.body);
+    } catch (error) {
+      if (error instanceof WebhookParseError) {
+        throw new BadRequestException(error.message);
+      }
+      throw new BadRequestException('Failed to parse webhook payload');
+    }
+  },
+);

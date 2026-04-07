@@ -290,3 +290,162 @@ header {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* Payment Method Selection */
+.payment-method-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-label {
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  color: #333;
+}
+
+.payment-methods {
+  display: flex;
+  gap: 1rem;
+}
+
+.payment-method-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.payment-method-option:hover {
+  border-color: #4CAF50;
+}
+
+.payment-method-option.selected {
+  border-color: #4CAF50;
+  background: #f0fff0;
+}
+
+.payment-method-option input {
+  display: none;
+}
+
+.method-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.method-name {
+  font-weight: 500;
+  color: #333;
+}
+
+/* CashPlus Result */
+.cashplus-result {
+  text-align: center;
+}
+
+.cashplus-code-container {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.code-label {
+  margin: 0 0 1rem;
+  color: #666;
+}
+
+.cashplus-code {
+  font-size: 2.5rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 4px;
+  color: #1a1a2e;
+  background: white;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  border: 2px dashed #4CAF50;
+  display: inline-block;
+}
+
+.payment-details {
+  margin: 1.5rem 0;
+  text-align: left;
+  background: #fafafa;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.payment-details p {
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.cashplus-instructions {
+  text-align: left;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #fff3e0;
+  border-radius: 8px;
+  border-left: 4px solid #ff9800;
+}
+
+.cashplus-instructions h3 {
+  margin: 0 0 0.75rem;
+  color: #e65100;
+}
+
+.cashplus-instructions ol {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.cashplus-instructions li {
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.new-payment-btn {
+  margin-top: 1.5rem;
+}
+
+/* Status check */
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.check-status-btn {
+  background: #2196F3;
+  color: white;
+}
+
+.check-status-btn:hover:not(:disabled) {
+  background: #1976D2;
+}
+
+.status-message {
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  margin-top: 1rem;
+}
+
+.status-message.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.status-message.pending {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ff9800;
+}

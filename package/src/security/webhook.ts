@@ -104,6 +104,17 @@ export interface WebhookVerifyOptions {
   secretParam?: string;
 }
 
+function safeCompareStrings(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left, 'utf8');
+  const rightBuffer = Buffer.from(right, 'utf8');
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 /**
  * Parse raw YouCanPay webhook payload into normalized format
  */
@@ -132,6 +143,19 @@ export function parseWebhookPayload(payload: unknown): ParsedWebhookPayload {
 
   const eventName = rawPayload.event_name;
   const rawStatus = Number(transaction.status);
+  const amount = Number(transaction.amount);
+
+  if (typeof eventName !== 'string' || eventName.trim() === '') {
+    throw new WebhookParseError('Invalid webhook payload: event_name must be a non-empty string');
+  }
+
+  if (!Number.isFinite(rawStatus)) {
+    throw new WebhookParseError('Invalid webhook payload: transaction status is invalid');
+  }
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new WebhookParseError('Invalid webhook payload: transaction amount is invalid');
+  }
 
   // Determine normalized status
   let status: 'paid' | 'failed' | 'refunded' | 'unknown';
@@ -153,7 +177,7 @@ export function parseWebhookPayload(payload: unknown): ParsedWebhookPayload {
     sandbox: rawPayload.sandbox,
     transactionId: transaction.id,
     orderId: transaction.order_id,
-    amount: Number(transaction.amount),
+    amount,
     currency: transaction.currency,
     rawStatus,
     status,
@@ -181,7 +205,7 @@ export function verifyWebhookSecret(options: WebhookVerifyOptions): boolean {
   // Check header-based signature first (preferred)
   if (headers) {
     const signature = headers[signatureHeader] || headers[signatureHeader.toLowerCase()];
-    if (signature && signature === secret) {
+    if (signature && safeCompareStrings(signature, secret)) {
       return true;
     }
   }
@@ -189,7 +213,7 @@ export function verifyWebhookSecret(options: WebhookVerifyOptions): boolean {
   // Fall back to query parameter (YouCanPay's method)
   if (query) {
     const querySecret = query[secretParam];
-    if (querySecret && querySecret === secret) {
+    if (querySecret && safeCompareStrings(querySecret, secret)) {
       return true;
     }
   }

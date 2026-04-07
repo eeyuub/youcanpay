@@ -100,6 +100,7 @@ cd frontend && npm install && cd ..
 # Backend
 cp backend/.env.example backend/.env
 # Edit backend/.env with your credentials
+# Keep FRONTEND_URL=http://localhost:5173 for the demo callback pages
 
 # Frontend
 cp frontend/.env.example frontend/.env

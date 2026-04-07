@@ -131,6 +131,14 @@ describe('Webhook Security', () => {
       expect(result).toBe(false);
     });
 
+    it('should reject secrets with different lengths', () => {
+      const result = verifyWebhookSecret({
+        secret,
+        query: { secret: 'my-webhook-secret-extra' },
+      });
+      expect(result).toBe(false);
+    });
+
     it('should reject missing secret', () => {
       const result = verifyWebhookSecret({
         secret,
@@ -199,6 +207,32 @@ describe('Webhook Security', () => {
       const objPayload = { test: 'data' };
       const signature = createWebhookSignature(objPayload, secret);
       expect(signature).toBeTruthy();
+    });
+  });
+
+  describe('parseWebhookPayload hardening', () => {
+    it('should reject invalid transaction amounts', () => {
+      expect(() =>
+        parseWebhookPayload({
+          ...validPayload,
+          payload: {
+            ...validPayload.payload,
+            transaction: {
+              ...validPayload.payload.transaction,
+              amount: 'NaN',
+            },
+          },
+        }),
+      ).toThrow(WebhookParseError);
+    });
+
+    it('should reject invalid event names', () => {
+      expect(() =>
+        parseWebhookPayload({
+          ...validPayload,
+          event_name: '',
+        }),
+      ).toThrow(WebhookParseError);
     });
   });
 });

@@ -7,22 +7,35 @@ import {
   YOUCANPAY_SANDBOX_BASE_URL,
   YOUCANPAY_PAYMENT_URL,
   YOUCANPAY_SANDBOX_PAYMENT_URL,
+  YOUCANPAY_TRANSACTION_API_URL,
+  YOUCANPAY_SANDBOX_TRANSACTION_API_URL,
 } from '../src/constants';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+type AxiosInstanceMock = {
+  post: jest.Mock;
+  get: jest.Mock;
+};
+
 describe('YouCanPayClient', () => {
   let client: YouCanPayClient;
   let sandboxClient: YouCanPayClient;
+  let axiosInstances: AxiosInstanceMock[];
 
   beforeEach(() => {
     jest.clearAllMocks();
+    axiosInstances = [];
 
-    mockedAxios.create.mockReturnValue({
-      post: jest.fn(),
-      get: jest.fn(),
-    } as unknown as jest.Mocked<typeof axios>);
+    mockedAxios.create.mockImplementation(() => {
+      const instance: AxiosInstanceMock = {
+        post: jest.fn(),
+        get: jest.fn(),
+      };
+      axiosInstances.push(instance);
+      return instance as unknown as jest.Mocked<typeof axios>;
+    });
 
     client = new YouCanPayClient({
       privateKey: 'pri_test_key',
@@ -37,29 +50,58 @@ describe('YouCanPayClient', () => {
     });
   });
 
+  const productionHttpMock = () => axiosInstances[0];
+  const productionTransactionHttpMock = () => axiosInstances[1];
+  const sandboxHttpMock = () => axiosInstances[2];
+  const sandboxTransactionHttpMock = () => axiosInstances[3];
+
   describe('constructor', () => {
-    it('should use production URL when sandbox is false', () => {
-      expect(mockedAxios.create).toHaveBeenCalledWith(
+    it('should use production API URLs when sandbox is false', () => {
+      expect(mockedAxios.create).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
           baseURL: YOUCANPAY_BASE_URL,
         }),
       );
+      expect(mockedAxios.create).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          baseURL: YOUCANPAY_TRANSACTION_API_URL,
+        }),
+      );
     });
 
-    it('should use sandbox URL when sandbox is true', () => {
-      expect(mockedAxios.create).toHaveBeenCalledWith(
+    it('should use sandbox API URLs when sandbox is true', () => {
+      expect(mockedAxios.create).toHaveBeenNthCalledWith(
+        3,
         expect.objectContaining({
           baseURL: YOUCANPAY_SANDBOX_BASE_URL,
         }),
       );
+      expect(mockedAxios.create).toHaveBeenNthCalledWith(
+        4,
+        expect.objectContaining({
+          baseURL: YOUCANPAY_SANDBOX_TRANSACTION_API_URL,
+        }),
+      );
+    });
+
+    it('should reject invalid client options', () => {
+      expect(
+        () =>
+          new YouCanPayClient({
+            privateKey: '',
+            publicKey: 'pub_test_key',
+          }),
+      ).toThrow(YouCanPayError);
     });
   });
 
   describe('createToken', () => {
     it('should send correct form data to /tokenize', async () => {
       const mockResponse = { data: { token: { id: 'tok_123' } } };
-      const httpMock = mockedAxios.create();
-      (httpMock.post as jest.Mock).mockResolvedValue(mockResponse);
+      const httpMock = productionHttpMock();
+      httpMock.post.mockResolvedValue(mockResponse);
 
       const result = await client.createToken({
         orderId: 'order_123',
@@ -77,8 +119,8 @@ describe('YouCanPayClient', () => {
     });
 
     it('should throw YouCanPayError on API error', async () => {
-      const httpMock = mockedAxios.create();
-      (httpMock.post as jest.Mock).mockRejectedValue({
+      const httpMock = productionHttpMock();
+      httpMock.post.mockRejectedValue({
         isAxiosError: true,
         response: {
           status: 422,
@@ -95,6 +137,19 @@ describe('YouCanPayClient', () => {
           successUrl: 'https://example.com/success',
         }),
       ).rejects.toThrow(YouCanPayError);
+    });
+
+    it('should reject invalid input before calling the API', async () => {
+      await expect(
+        client.createToken({
+          amount: 50,
+          currency: CurrencyCode.MAD,
+          customerIp: '127.0.0.1',
+          successUrl: 'https://example.com/success',
+        }),
+      ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION_ERROR });
+
+      expect(productionHttpMock().post).not.toHaveBeenCalled();
     });
   });
 
@@ -126,13 +181,13 @@ describe('YouCanPayClient', () => {
           order_id: 'order_123',
         },
       };
-      const httpMock = mockedAxios.create();
-      (httpMock.post as jest.Mock).mockResolvedValue(mockResponse);
+      const httpMock = productionHttpMock();
+      httpMock.post.mockResolvedValue(mockResponse);
 
       const result = await client.payWithCreditCard({
         tokenId: 'tok_123',
         creditCard: '4111111111111111',
-        expireDate: '12/25',
+        expireDate: '12/99',
         cvv: '123',
         cardHolderName: 'John Doe',
       });
@@ -141,35 +196,114 @@ describe('YouCanPayClient', () => {
       expect(result.success).toBe(true);
       expect(result.transaction_id).toBe('txn_123');
     });
+
+    it('should reject invalid card input before calling the API', async () => {
+      await expect(
+        client.payWithCreditCard({
+          tokenId: 'tok_123',
+          creditCard: '4111111111111112',
+          expireDate: '12/99',
+          cvv: '123',
+          cardHolderName: 'John Doe',
+        }),
+      ).rejects.toMatchObject({ code: ErrorCodes.VALIDATION_ERROR });
+
+      expect(productionHttpMock().post).not.toHaveBeenCalled();
+    });
   });
 
   describe('payWithCashPlus', () => {
     it('should send correct form data to /cashplus/init', async () => {
       const mockResponse = {
         data: {
-          success: true,
           transaction_id: 'txn_123',
-          cashplus_token: 'cp_tok_123',
+          token: 'cp115705252',
         },
       };
-      const httpMock = mockedAxios.create();
-      (httpMock.post as jest.Mock).mockResolvedValue(mockResponse);
+      const httpMock = productionHttpMock();
+      httpMock.post.mockResolvedValue(mockResponse);
 
       const result = await client.payWithCashPlus({ tokenId: 'tok_123' });
 
       expect(httpMock.post).toHaveBeenCalledWith('/cashplus/init', expect.any(URLSearchParams));
-      expect(result.cashplus_token).toBe('cp_tok_123');
+      expect(result.token).toBe('cp115705252');
+    });
+
+    it('should reject an empty token ID before calling the API', async () => {
+      await expect(client.payWithCashPlus({ tokenId: '' })).rejects.toMatchObject({
+        code: ErrorCodes.VALIDATION_ERROR,
+      });
+
+      expect(productionHttpMock().post).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getTransaction', () => {
+    it('should query the dedicated transaction API', async () => {
+      const transactionMock = productionTransactionHttpMock();
+      transactionMock.get.mockResolvedValue({
+        data: {
+          id: 'txn_123',
+          order_id: 'order_123',
+          amount: 5000,
+          currency: 'MAD',
+          status: 'paid',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+      });
+
+      const result = await client.getTransaction('txn_123');
+
+      expect(transactionMock.get).toHaveBeenCalledWith('/transactions/txn_123', {
+        params: { pri_key: 'pri_test_key' },
+      });
+      expect(result.status).toBe('paid');
+    });
+
+    it('should configure a separate transaction API client for sandbox mode', () => {
+      expect(sandboxTransactionHttpMock()).toBeDefined();
+      expect(sandboxHttpMock()).toBeDefined();
+    });
+
+    it('should reject an empty transaction ID before calling the API', async () => {
+      await expect(client.getTransaction('')).rejects.toMatchObject({
+        code: ErrorCodes.VALIDATION_ERROR,
+      });
+
+      expect(productionTransactionHttpMock().get).not.toHaveBeenCalled();
     });
   });
 
   describe('verifyWebhook', () => {
-    it('should return true for valid payload', () => {
+    it('should return true for the current nested webhook payload', () => {
+      const payload = {
+        id: 'webhook-123',
+        event_name: 'transaction.paid',
+        sandbox: true,
+        payload: {
+          transaction: {
+            id: 'txn_123',
+            status: 1,
+            order_id: 'order_123',
+            amount: '5000',
+            currency: 'MAD',
+            created_at: '2026-01-01T00:00:00Z',
+          },
+        },
+      };
+
+      expect(client.verifyWebhook(payload)).toBe(true);
+    });
+
+    it('should keep supporting the legacy flat payload shape', () => {
       const payload = {
         transaction_id: 'txn_123',
         order_id: 'order_123',
         amount: 5000,
         status: 'success',
       };
+
       expect(client.verifyWebhook(payload)).toBe(true);
     });
 

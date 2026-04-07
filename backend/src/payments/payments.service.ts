@@ -5,9 +5,10 @@ import {
   CurrencyCode,
   ParsedWebhookPayload,
   parseWebhookPayload,
-} from 'youcanpay-sdk';
+} from '@wiicode/youcanpay-sdk';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateCashPlusPaymentDto } from './dto/create-cashplus-payment.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -18,23 +19,26 @@ export class PaymentsService {
     private readonly config: ConfigService,
   ) {}
 
+  private getRedirectBaseUrl(): string {
+    return (
+      this.config.get<string>('FRONTEND_URL') ||
+      this.config.get<string>('APP_URL') ||
+      'http://localhost:5173'
+    );
+  }
+
+  private getRedirectUrls(dto: { successUrl?: string; errorUrl?: string }) {
+    const baseUrl = this.getRedirectBaseUrl();
+
+    return {
+      successUrl: dto.successUrl || `${baseUrl}/payments/success`,
+      errorUrl: dto.errorUrl || `${baseUrl}/payments/error`,
+    };
+  }
+
   async createPayment(userId: string, dto: CreatePaymentDto, customerIp: string) {
     const orderId = uuidv4();
-
-    const baseUrl = this.config.get<string>('APP_URL') || 'http://localhost:3000';
-    const successUrl = dto.successUrl || `${baseUrl}/payments/success`;
-    const errorUrl = dto.errorUrl || `${baseUrl}/payments/error`;
-
-    // Create payment record
-    const payment = await this.prisma.payment.create({
-      data: {
-        orderId,
-        amount: dto.amount,
-        currency: dto.currency,
-        userId,
-        status: 'PENDING',
-      },
-    });
+    const { successUrl, errorUrl } = this.getRedirectUrls(dto);
 
     // Create token with YouCanPay
     const { token } = await this.youcanpay.createToken({
@@ -46,16 +50,66 @@ export class PaymentsService {
       errorUrl,
     });
 
-    // Update payment with tokenId
-    await this.prisma.payment.update({
-      where: { id: payment.id },
-      data: { tokenId: token.id },
+    const payment = await this.prisma.payment.create({
+      data: {
+        orderId,
+        amount: dto.amount,
+        currency: dto.currency,
+        userId,
+        status: 'PENDING',
+        tokenId: token.id,
+      },
     });
 
     return {
       paymentId: payment.id,
       tokenId: token.id,
       paymentUrl: this.youcanpay.getPaymentUrl(token.id),
+    };
+  }
+
+  async createCashPlusPayment(userId: string, dto: CreateCashPlusPaymentDto, customerIp: string) {
+    const orderId = uuidv4();
+    const { successUrl, errorUrl } = this.getRedirectUrls(dto);
+
+    // Create token with YouCanPay
+    const { token } = await this.youcanpay.createToken({
+      orderId,
+      amount: dto.amount,
+      currency: dto.currency as CurrencyCode,
+      customerIp,
+      successUrl,
+      errorUrl,
+    });
+
+    // Initialize CashPlus payment
+    const cashplusResult = await this.youcanpay.payWithCashPlus({
+      tokenId: token.id,
+    });
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        orderId,
+        amount: dto.amount,
+        currency: dto.currency,
+        userId,
+        status: 'PENDING',
+        paymentMethod: 'CASHPLUS',
+        tokenId: token.id,
+        cashplusToken: cashplusResult.token,
+        transactionId: cashplusResult.transaction_id,
+      },
+    });
+
+    return {
+      paymentId: payment.id,
+      orderId,
+      cashplusToken: cashplusResult.token,
+      transactionId: cashplusResult.transaction_id,
+      amount: dto.amount,
+      currency: dto.currency,
+      message: cashplusResult.message,
+      expiresAt: cashplusResult.expires_at,
     };
   }
 
@@ -156,7 +210,64 @@ export class PaymentsService {
    * Verify payment status - called from success/error redirect page
    * This is the secure way to confirm payment, not trusting URL params
    */
-  async verifyPayment(orderId: string, transactionId: string) {
+  /**
+   * Check CashPlus payment status by querying YouCanPay API
+   * Useful for polling payment status before webhook arrives
+   */
+  async checkCashPlusStatus(paymentId: string, userId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, userId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    if (!payment.transactionId) {
+      return {
+        paymentId: payment.id,
+        status: payment.status,
+        message: 'No transaction ID available',
+      };
+    }
+
+    // Query YouCanPay for current transaction status
+    try {
+      const transaction = await this.youcanpay.getTransaction(payment.transactionId);
+
+      // Update local status if YouCanPay shows it's paid
+      if (transaction.status === 'paid' && payment.status !== 'COMPLETED') {
+        await this.prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: 'COMPLETED' },
+        });
+
+        return {
+          paymentId: payment.id,
+          status: 'COMPLETED',
+          transactionStatus: transaction.status,
+          message: 'Payment confirmed!',
+        };
+      }
+
+      return {
+        paymentId: payment.id,
+        status: payment.status,
+        transactionStatus: transaction.status,
+        cashplusToken: payment.cashplusToken,
+        amount: payment.amount,
+        currency: payment.currency,
+      };
+    } catch (error) {
+      return {
+        paymentId: payment.id,
+        status: payment.status,
+        error: 'Could not fetch status from YouCanPay',
+      };
+    }
+  }
+
+  async verifyPayment(orderId: string, transactionId: string, isSuccess?: boolean) {
     // Find payment in our database
     const payment = await this.prisma.payment.findUnique({
       where: { orderId },
@@ -172,6 +283,26 @@ export class PaymentsService {
         verified: true,
         status: payment.status,
         transactionId: payment.transactionId,
+        amount: payment.amount,
+        currency: payment.currency,
+      };
+    }
+
+    // If still pending and redirect indicates success, update the payment
+    if (payment.status === 'PENDING' && transactionId && isSuccess) {
+      // Trust the redirect params from YouCanPay (is_success=1)
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'COMPLETED',
+          transactionId: transactionId,
+        },
+      });
+
+      return {
+        verified: true,
+        status: 'COMPLETED',
+        transactionId: transactionId,
         amount: payment.amount,
         currency: payment.currency,
       };
