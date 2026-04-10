@@ -3,3 +3,4 @@ export * from './token.interface';
 export * from './payment.interface';
 export * from './transaction.interface';
 export * from './webhook.interface';
+export * from './refund.interface';

@@ -31,6 +31,10 @@ import {
   CashPlusPaymentResponse,
   CashPlusApiResponse,
   Transaction,
+  CreateRefundParams,
+  Refund,
+  ListRefundsParams,
+  RefundListResponse,
 } from './interfaces';
 
 export class YouCanPayClient {
@@ -243,6 +247,124 @@ export class YouCanPayClient {
       await this.logger.log(
         'getTransaction',
         { transactionId },
+        undefined,
+        'error',
+        Date.now() - startTime,
+      );
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Create a refund for a transaction
+   * @param params - Refund parameters including transactionId, optional amount (for partial refund), and reason
+   * @returns The created refund object
+   */
+  async createRefund(params: CreateRefundParams): Promise<Refund> {
+    const startTime = Date.now();
+    if (!params.transactionId) {
+      throw new YouCanPayError('Transaction ID is required', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    try {
+      const response = await this.transactionHttp.post(
+        '/refunds',
+        {
+          transaction_id: params.transactionId,
+          ...(params.amount !== undefined && { amount: params.amount }),
+          ...(params.reason && { reason: params.reason }),
+        },
+        {
+          params: { pri_key: this.privateKey },
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+      const data = response.data as Refund;
+      await this.logger.log(
+        'createRefund',
+        { transactionId: params.transactionId, amount: params.amount, reason: params.reason },
+        data as unknown as Record<string, unknown>,
+        'success',
+        Date.now() - startTime,
+      );
+      return data;
+    } catch (error) {
+      await this.logger.log(
+        'createRefund',
+        { transactionId: params.transactionId },
+        undefined,
+        'error',
+        Date.now() - startTime,
+      );
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Get a refund by ID
+   * @param refundId - The refund ID
+   * @returns The refund object
+   */
+  async getRefund(refundId: string): Promise<Refund> {
+    const startTime = Date.now();
+    if (!refundId) {
+      throw new YouCanPayError('Refund ID is required', ErrorCodes.VALIDATION_ERROR);
+    }
+
+    try {
+      const response = await this.transactionHttp.get(`/refunds/${refundId}`, {
+        headers: {
+          Authorization: `Bearer ${this.privateKey}`,
+        },
+      });
+      const data = response.data as Refund;
+      await this.logger.log(
+        'getRefund',
+        { refundId },
+        data as unknown as Record<string, unknown>,
+        'success',
+        Date.now() - startTime,
+      );
+      return data;
+    } catch (error) {
+      await this.logger.log(
+        'getRefund',
+        { refundId },
+        undefined,
+        'error',
+        Date.now() - startTime,
+      );
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * List refunds with optional filters
+   * @param params - Optional filter and pagination parameters
+   * @returns Paginated list of refunds
+   */
+  async listRefunds(params?: ListRefundsParams): Promise<RefundListResponse> {
+    const startTime = Date.now();
+    try {
+      const response = await this.transactionHttp.get('/refunds', {
+        params: { ...params },
+        headers: {
+          Authorization: `Bearer ${this.privateKey}`,
+        },
+      });
+      const data = response.data as RefundListResponse;
+      await this.logger.log(
+        'listRefunds',
+        { ...params },
+        data as unknown as Record<string, unknown>,
+        'success',
+        Date.now() - startTime,
+      );
+      return data;
+    } catch (error) {
+      await this.logger.log(
+        'listRefunds',
+        { ...params },
         undefined,
         'error',
         Date.now() - startTime,

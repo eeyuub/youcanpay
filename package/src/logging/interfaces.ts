@@ -1,4 +1,4 @@
-export type LogAction = 'createToken' | 'payWithCreditCard' | 'payWithCashPlus' | 'webhook' | 'getTransaction';
+export type LogAction = 'createToken' | 'payWithCreditCard' | 'payWithCashPlus' | 'webhook' | 'getTransaction' | 'createRefund' | 'getRefund' | 'listRefunds';
 export type LogStatus = 'success' | 'error';
 export type LogStorage = 'database' | 'custom' | 'none';
 
